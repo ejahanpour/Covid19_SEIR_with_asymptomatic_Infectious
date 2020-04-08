@@ -29,8 +29,6 @@ shinyServer(function(input, output) {
     
     get_population <- reactive({
         selected_county <- if_else(grepl('city', tolower(input$county)), input$county, paste(input$county, 'County'))
-        # county_cases <- missouri_nyt %>%
-        #     filter(COUNTY == input$county)
         N <- missouri_population %>%
             filter(COUNTY == selected_county) %>%
             # filter(COUNTY == 'Marion County') %>%
@@ -40,8 +38,6 @@ shinyServer(function(input, output) {
         
     })
    output$distPlot <- renderPlot({
-        print(get_infected_counts()[[1]])
-       print(get_population())
         I <- SEIR_model(I1_0 = get_infected_counts()[[2]], N = get_population(), 
                         beta0 = input$beta0, beta1 = input$beta1, beta2 = input$beta2, beta3 = input$beta3, alpha = input$alpha, 
                         gamma1 = 0.0727, gamma2 = 0.1397, gamma3 = 0.0109341, 
@@ -54,13 +50,15 @@ shinyServer(function(input, output) {
         observed_data$DATE <- as.Date(observed_data$DATE)
         
         combined_cases <- merge(I, observed_data, by.x = 'day', by.y = 'DATE', all.x = TRUE)
+        RMSE <- sqrt(sum((combined_cases$cases - combined_cases$CASES)^2, na.rm = TRUE))
         ggplot(data = combined_cases, aes(x = day, y = cases)) + 
             geom_line(aes(y = cases, colour = 'simulated')) + 
             geom_line(aes(y = CASES, color = 'observed')) +
-            ggtitle('Projected cases per day') + 
+            ggtitle(paste('Projected cases per day, RMSE:', round(RMSE, 2))) + 
             scale_colour_manual("", 
                                 breaks = c("simulated", "observed"),
                                 values = c("Steelblue", "black")) 
         })
+
 
 })
