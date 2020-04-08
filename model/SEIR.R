@@ -1,4 +1,5 @@
 library(ggplot2)
+library(dplyr)
 
 
 SEIR_model <- function(I1_0 = 2, N = 10000, 
@@ -13,7 +14,7 @@ SEIR_model <- function(I1_0 = 2, N = 10000,
   # gamma1 = 0.0727; gamma2 = 0.1397; gamma3 = 0.0109341;
   # exposure_time =  3; asymptomatic_to_recover = 6;
   # symptomatic_to_test = 3; test_to_hosp = 3; hosp_to_ICU = 6; ICU_time = 8;
-  # sim_time = 60; time_0 = '03/23/2020'; time_from_infect_to_report = 10
+  # # sim_time = 60; time_0 = '03/23/2020'; time_from_infect_to_report = 10
   ###' SEIR model gets the infected data at time 0 and model the infetion spread over time (projected)
   ###' I1_0: <int> number of infected patient at time 0
   ###' N: <int> population of the community
@@ -65,7 +66,7 @@ SEIR_model <- function(I1_0 = 2, N = 10000,
     # for (t in 1:30)
   {
     S[t + 1] = S[t] - S[t] * sum(beta0 * I0[t], beta1 * I1[t], beta2 * I2[t], beta3 * I3[t]) / N - min(N, R[t] + D[t])
-    E[t:(t + exposure_time)] = E[t:(t + exposure_time)] + alpha * exposure_to_asymp +  S[t] * sum(beta0 * I0[t], beta1 * I1[t], beta2 * I2[t], beta3 * I3[t]) / N
+    E[(t+1):(t + exposure_time)] = E[(t+1):(t + exposure_time)] +  S[t] * sum(beta0 * I0[t], beta1 * I1[t], beta2 * I2[t], beta3 * I3[t]) / N
     I0[(t + exposure_time):(t + exposure_time + asymptomatic_to_recover)] =+ E[t] * alpha 
     I1[(t + exposure_time):(t + exposure_time + symptomatic_to_test + test_to_hosp)] =+ E[t] * (1 - alpha)
     I2[(t + exposure_time + symptomatic_to_test + test_to_hosp):(t + exposure_time + symptomatic_to_test + test_to_hosp + hosp_to_ICU)] =+ 
@@ -84,33 +85,37 @@ SEIR_model <- function(I1_0 = 2, N = 10000,
       D[(t + exposure_time + symptomatic_to_test + test_to_hosp + hosp_to_ICU + ICU_time):length(R)] + gamma3 * I3[t + exposure_time + symptomatic_to_test + test_to_hosp + hosp_to_ICU]
   }
   
-  date_range <- seq(as.Date(time_0, format = '%m/%d/%Y') - (exposure_time + symptomatic_to_test - 1), 
-                    as.Date(time_0, format = '%m/%d/%Y') + sim_time, "days")
+  date_range <- seq(as.Date(time_0) - (exposure_time + symptomatic_to_test - 1), 
+                    as.Date(time_0) + sim_time, "days")
   cases = I1[1:length(date_range)] + I2[1:length(date_range)] + I3[1:length(date_range)]
   df <- data.frame(day = date_range, cases = cases)
   return(df)
   
 }
 
-test <- SEIR_model(I1_0 = 2, N = 10000, 
-                               beta0 = 0.4, beta1 = 0.3, beta2 = 0.2, beta3 = 0.1, alpha = 0.8, 
-                               gamma1 = 0.0727, gamma2 = 0.1397, gamma3 = 0.0109341, 
-                               exposure_time =  3, asymptomatic_to_recover = 6,
-                               symptomatic_to_test = 3, test_to_hosp = 3, hosp_to_ICU = 6, ICU_time = 8,
-                               sim_time = 60, time_0 = '03/23/2020', time_from_infect_to_report = 10
-)
-
-test$row <- 1:length(test$cases)
-counts <- missouri_nyt %>%
-  filter(COUNTY == 'Adair') %>%
-  select(DATE, CASES)
-counts$DATE <- as.Date(counts$DATE)
-test <- merge(test, counts, by.x = 'day', by.y = 'DATE', all.x = TRUE)
-ggplot(data = test, aes(x = day)) + 
-  geom_line(aes(y = cases, colour = 'Simulated')) + 
-  geom_line(aes(y = CASES, colour = 'Observed')) +
-  ggtitle('Projected cases per day') +
-  scale_colour_manual("", 
-                      breaks = c("Simulated", "Observed"),
-                      values = c("Steelblue", "black")) 
+if(FALSE)
+{
+  test <- SEIR_model(I1_0 = 2, N = 10000, 
+                     beta0 = 0.4, beta1 = 0.3, beta2 = 0.2, beta3 = 0.1, alpha = 0.8, 
+                     gamma1 = 0.0727, gamma2 = 0.1397, gamma3 = 0.0109341, 
+                     exposure_time =  3, asymptomatic_to_recover = 6,
+                     symptomatic_to_test = 3, test_to_hosp = 3, hosp_to_ICU = 6, ICU_time = 8,
+                     sim_time = 60, time_0 = '03/23/2020', time_from_infect_to_report = 10
+  )
   
+  test$row <- 1:length(test$cases)
+  counts <- missouri_nyt %>%
+    filter(COUNTY == 'Adair') %>%
+    select(DATE, CASES)
+  counts$DATE <- as.Date(counts$DATE)
+  test <- merge(test, counts, by.x = 'day', by.y = 'DATE', all.x = TRUE)
+  ggplot(data = test, aes(x = day)) + 
+    geom_line(aes(y = cases, colour = 'Simulated')) + 
+    geom_line(aes(y = CASES, colour = 'Observed')) +
+    ggtitle('Projected cases per day') +
+    scale_colour_manual("", 
+                        breaks = c("Simulated", "Observed"),
+                        values = c("Steelblue", "black")) 
+  
+  
+}

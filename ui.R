@@ -8,20 +8,21 @@
 #
 
 library(shiny)
-missouri_population <- read.csv('../data/missouri_population.csv')
+missouri_cases <- read.csv('data/missouri_nyt.csv')
 # Define UI for application that draws a histogram
 shinyUI(fluidPage(
 
     # Application title
-    titlePanel("Estimation of Infectious cases"),
+    titlePanel("Infectious Disease Alert (IDA)"),
     
     # Sidebar with a slider input for number of bins
     sidebarLayout(
         sidebarPanel(
-            selectInput('county', 'Select County', choices = sort(unique(missouri_population$COUNTY))),
-            sliderInput("beta0", "Beta 0", min = 0, max = 1, value = 0.4),
-            sliderInput("beta1", "Beta 1", min = 0, max = 1, value = 0.3),
-            sliderInput("beta2", "Beta 2", min = 0, max = 1, value = 0.2),
+            selectInput('county', 'Select County', choices = sort(unique(missouri_cases$COUNTY))),
+            sliderInput("alpha", "percentage of asymptomatic infectious", min = 0, max = 1, value = 0.5),
+            sliderInput("beta0", "Beta 0", min = 0, max = 1, value = 0.7),
+            sliderInput("beta1", "Beta 1", min = 0, max = 1, value = 0.5),
+            sliderInput("beta2", "Beta 2", min = 0, max = 1, value = 0.3),
             sliderInput("beta3", "Beta 3", min = 0, max = 1, value = 0.1)
         ),
 
