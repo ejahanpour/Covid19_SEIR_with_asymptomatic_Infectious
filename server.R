@@ -7,9 +7,12 @@
 #    http://shiny.rstudio.com/
 #
 
-source("model/SEIR.R")
+# source("model/SEIR.R")
+source("model/Stochastic_SEIR.R")
+source("handler_functions/visualization_handler.R")
 library(shiny)
 library(dplyr)
+library(plotly)
 
 # Define server logic required to draw a histogram
 shinyServer(function(input, output) {
@@ -37,28 +40,41 @@ shinyServer(function(input, output) {
         # county_population <- N[1, 1]
         
     })
-   output$distPlot <- renderPlot({
-        I <- SEIR_model(I1_0 = get_infected_counts()[[2]], N = get_population(), 
-                        beta0 = input$beta0, beta1 = input$beta1, beta2 = input$beta2, beta3 = input$beta3, alpha = input$alpha, 
-                        gamma1 = 0.0727, gamma2 = 0.1397, gamma3 = 0.0109341, 
-                        exposure_time =  3, asymptomatic_to_recover = 6,
-                        symptomatic_to_test = 3, test_to_hosp = 3, hosp_to_ICU = 6, ICU_time = 8,
-                        sim_time = 60, time_0 = get_infected_counts()[[3]], time_from_infect_to_report = 10
-        )
-        # I <- I[1:30, ]
-        observed_data <- get_infected_counts()[[1]]
-        observed_data$DATE <- as.Date(observed_data$DATE)
-        
-        combined_cases <- merge(I, observed_data, by.x = 'day', by.y = 'DATE', all.x = TRUE)
-        RMSE <- sqrt(sum((combined_cases$cases - combined_cases$CASES)^2, na.rm = TRUE))
-        ggplot(data = combined_cases, aes(x = day, y = cases)) + 
-            geom_line(aes(y = cases, colour = 'simulated')) + 
-            geom_line(aes(y = CASES, color = 'observed')) +
-            ggtitle(paste('Projected cases per day, RMSE:', round(RMSE, 2))) + 
-            scale_colour_manual("", 
-                                breaks = c("simulated", "observed"),
-                                values = c("Steelblue", "black")) 
-        })
+   # output$distPlot <- renderPlot({
+   #      I <- SEIR_model(I1_0 = get_infected_counts()[[2]], N = get_population(), 
+   #                      beta0 = input$beta0, beta1 = input$beta1, beta2 = input$beta2, beta3 = input$beta3, alpha = input$alpha, 
+   #                      gamma1 = 0.0727, gamma2 = 0.1397, gamma3 = 0.0109341, 
+   #                      exposure_time =  3, asymptomatic_to_recover = 6,
+   #                      symptomatic_to_test = 3, test_to_hosp = 3, hosp_to_ICU = 6, ICU_time = 8,
+   #                      sim_time = 60, time_0 = get_infected_counts()[[3]], time_from_infect_to_report = 10
+   #      )
+   #      # I <- I[1:30, ]
+   #      observed_data <- get_infected_counts()[[1]]
+   #      observed_data$DATE <- as.Date(observed_data$DATE)
+   #      
+   #      combined_cases <- merge(I, observed_data, by.x = 'day', by.y = 'DATE', all.x = TRUE)
+   #      RMSE <- sqrt(sum((combined_cases$cases - combined_cases$CASES)^2, na.rm = TRUE))
+   #      ggplot(data = combined_cases, aes(x = day, y = cases)) + 
+   #          geom_line(aes(y = cases, colour = 'simulated')) + 
+   #          geom_line(aes(y = CASES, color = 'observed')) +
+   #          ggtitle(paste('Projected cases per day, RMSE:', round(RMSE, 2))) + 
+   #          scale_colour_manual("", 
+   #                              breaks = c("simulated", "observed"),
+   #                              values = c("Steelblue", "black")) 
+   #      })
+   
+   output$distPlot <- renderPlotly({
+       SEIR_stat <- Stochastic_SEIR(N = 1000000, first_case_date = '03/23/2020', first_case_count = 1, simulation_time = 30, 
+                     beta0 = 1, bata1 = 0.5, beta2 = 0.3, beta3 = 0.1, 
+                     alpha = 0.3, alpha_p = 0.6, 
+                     rho1 = 0.5, rho2 = 0.4, rho3 = 0.2, 
+                     resusciptible = 0,
+                     incubation_period = 5, asymptomatic_duration = 6, 
+                     mild_duration = 6, severe_duration = 6, critical_duration = 8)
+       
+       plot_stats(SEIR_stat)
+       
+   })
 
 
 })
