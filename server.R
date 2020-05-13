@@ -10,71 +10,91 @@
 # source("model/SEIR.R")
 source("model/Stochastic_SEIR.R")
 source("handler_functions/visualization_handler.R")
+source("handler_functions/Re_calculation.R")
+source("handler_functions/count_smoother.R")
 library(shiny)
 library(dplyr)
 library(plotly)
 
 # Define server logic required to draw a histogram
 shinyServer(function(input, output) {
-    missouri_nyt <- read.csv('data/missouri_nyt.csv', stringsAsFactors = FALSE)
-    missouri_population <- read.csv('data/missouri_population.csv', stringsAsFactors = FALSE)
-    
-    get_infected_counts <- reactive({ 
-        # the demographic data has a County added to the name of the county
-        counts <- missouri_nyt %>%
-            filter(COUNTY == input$county) %>% 
-            # filter(COUNTY == 'St. Louis city') %>%
-        select(DATE, CASES)
-        first_record <- counts %>%
-            filter(DATE == min(DATE)) 
-        list(counts, first_record[1, 'CASES'], first_record[1, 'DATE'])
-    })
-    
-    get_population <- reactive({
-        selected_county <- if_else(grepl('city', tolower(input$county)), input$county, paste(input$county, 'County'))
-        N <- missouri_population %>%
-            filter(COUNTY == selected_county) %>%
-            # filter(COUNTY == 'Marion County') %>%
-            select(TOTAL_POPULATION)
-        N[1, 1]
-        # county_population <- N[1, 1]
-        
-    })
-   # output$distPlot <- renderPlot({
-   #      I <- SEIR_model(I1_0 = get_infected_counts()[[2]], N = get_population(), 
-   #                      beta0 = input$beta0, beta1 = input$beta1, beta2 = input$beta2, beta3 = input$beta3, alpha = input$alpha, 
-   #                      gamma1 = 0.0727, gamma2 = 0.1397, gamma3 = 0.0109341, 
-   #                      exposure_time =  3, asymptomatic_to_recover = 6,
-   #                      symptomatic_to_test = 3, test_to_hosp = 3, hosp_to_ICU = 6, ICU_time = 8,
-   #                      sim_time = 60, time_0 = get_infected_counts()[[3]], time_from_infect_to_report = 10
-   #      )
-   #      # I <- I[1:30, ]
-   #      observed_data <- get_infected_counts()[[1]]
-   #      observed_data$DATE <- as.Date(observed_data$DATE)
-   #      
-   #      combined_cases <- merge(I, observed_data, by.x = 'day', by.y = 'DATE', all.x = TRUE)
-   #      RMSE <- sqrt(sum((combined_cases$cases - combined_cases$CASES)^2, na.rm = TRUE))
-   #      ggplot(data = combined_cases, aes(x = day, y = cases)) + 
-   #          geom_line(aes(y = cases, colour = 'simulated')) + 
-   #          geom_line(aes(y = CASES, color = 'observed')) +
-   #          ggtitle(paste('Projected cases per day, RMSE:', round(RMSE, 2))) + 
-   #          scale_colour_manual("", 
-   #                              breaks = c("simulated", "observed"),
-   #                              values = c("Steelblue", "black")) 
-   #      })
+   create_region_stats <- reactive({ 
+      region_hosp <- all_hosp %>%
+         filter((LATEST_COUNTED_DHSS_REGION == input$region) & (county == input$counties)) %>%
+         mutate(ONSET_DATE = as.Date(ONSET_DATE)) %>%
+         rename(hospitalized = CASES, smoothed_hospitalized = smoothed_cases) %>%
+         select(-LATEST_COUNTED_DHSS_REGION)
+      region_death <- all_death %>%
+         filter((LATEST_COUNTED_DHSS_REGION == input$region) & (county == input$counties)) %>%
+         rename(death = CASES, smoothed_death = smoothed_cases) %>%
+         select(-LATEST_COUNTED_DHSS_REGION)
+      # merge and create the main plot for the data
+      region_data <- all_cases %>%
+         filter((LATEST_COUNTED_DHSS_REGION == input$region) & (county == input$counties)) %>%
+         merge(region_hosp, by = c('ONSET_DATE', 'county'), all.x = TRUE) %>%
+         merge(region_death, by = c('ONSET_DATE', 'county'), all.x = TRUE) %>%
+         mutate(hospitalized = ifelse(is.na(smoothed_hospitalized), 0, smoothed_hospitalized),
+                death = ifelse(is.na(smoothed_death), 0 , smoothed_death)) 
+      # region_data <- head(region_data, -1)
+      })
+   
+   output$countyControls <- renderUI({
+      counties <- unique(all_cases[all_cases$LATEST_COUNTED_DHSS_REGION == input$region, ]$county)
+      selectInput("counties", "Choose County", choices = counties, selected = 'All')
+   })
    
    output$distPlot <- renderPlotly({
-       SEIR_stat <- Stochastic_SEIR(N = 1000000, first_case_date = '03/23/2020', first_case_count = 1, simulation_time = 30, 
-                     beta0 = 1, bata1 = 0.5, beta2 = 0.3, beta3 = 0.1, 
-                     alpha = 0.3, alpha_p = 0.6, 
-                     rho1 = 0.5, rho2 = 0.4, rho3 = 0.2, 
-                     resusciptible = 0,
-                     incubation_period = 5, asymptomatic_duration = 6, 
-                     mild_duration = 6, severe_duration = 6, critical_duration = 8)
-       
-       plot_stats(SEIR_stat)
+      if(input$smoother == FALSE) {
+         fig <- plot_ly(create_region_stats(), x = ~ONSET_DATE, y = ~CASES, type = 'scatter', mode = 'lines', name = 'confirmed cases', 
+                        hovertemplate = '%{x} confirmed cases: %{y}') %>%
+            add_trace(y = ~ hospitalized, name = 'hospitalized cases', hovertemplate = 'hospitalized cases: %{y}') %>%
+            add_trace(y = ~ death, name = 'death cases'
+                      # , hovertemplate = 'death number: %{y}'
+            ) %>%
+            layout(title = 'Confirmed, hospitalized and death cases per onset date',
+                   xaxis = list(title = 'Onset Date'), 
+                   yaxis = list(title = 'Counts'))
+      } else {
+         fig <- plot_ly(create_region_stats(), x = ~ONSET_DATE, y = ~smoothed_cases, type = 'scatter', mode = 'lines', name = 'confirmed cases', 
+                        hovertemplate = '%{x} confirmed cases: %{y}') %>%
+            add_trace(y = ~ smoothed_hospitalized, name = 'hospitalized cases', hovertemplate = 'hospitalized cases: %{y}') %>%
+            add_trace(y = ~ smoothed_death, name = 'death cases'
+                      # , hovertemplate = 'death number: %{y}'
+            ) %>%
+            layout(title = 'Confirmed, hospitalized and death cases per onset date',
+                   xaxis = list(title = 'Onset Date'), 
+                   yaxis = list(title = 'Counts'))
+         
+      }
+       fig
        
    })
-
+   
+   output$re <- renderPlotly({
+      
+      if (input$uniform_prior == FALSE) {
+         
+         calculate_Re_From_SI(dataframe = create_region_stats(), mean_si = as.numeric(input$mean_si), std_si = as.numeric(input$std_si), 
+                              region = input$region, county = input$counties)
+      } else {
+         region_posterior <- posterior_Re[(posterior_Re$LATEST_COUNTED_DHSS_REGION == input$region) & 
+                                          (posterior_Re$county == input$counties), ]
+         region_posterior$all_one <- 1
+         fig <- plot_ly(data = region_posterior, x = ~day, y = ~r_e_high, type = 'scatter', mode = 'lines', name = 'UCL', 
+                        line = list(color = 'transparent')) %>%
+            add_trace(y = ~r_e_low, type = 'scatter', mode = 'lines',
+                      fill = 'tonexty', fillcolor='rgba(0,100,80,0.2)', name = 'LCL', line = list(color = 'transparent')) %>%
+            add_trace(y = ~r_e_most_likely, type = 'scatter', mode = 'lines', line = list(color = 'black'), name = 'Re') %>%
+            add_trace(y = ~all_one, type = 'scatter', mode = 'lines', name = 'unit line', line = list(color = 'red', dash = 'dash')) %>%
+            layout(title = paste0('Covid-19 effective reproductive number (Re), ', input$counties, ', ', tolower(input$region), ' district, Missouri. 2020'), 
+                   xaxis = list(title = 'day'),
+                   yaxis = list(title = 'effective reproducion number'))
+      } 
+      
+   })
+   
+   output$seir <- renderPrint({
+      "coming Soon..."
+   })
 
 })

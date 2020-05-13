@@ -49,6 +49,10 @@ update_population <- function(t, exposed_individual, population_stat, new_cases)
   population_stat[(t + 1 + incubation_period + mild_duration + severe_duration):(t + incubation_period + mild_duration + severe_duration + critical_duration), 'I3'] = 
     population_stat[(t + 1 + incubation_period + mild_duration + severe_duration):(t + incubation_period + mild_duration + severe_duration + critical_duration), 'I3'] + as.numeric(ind$critical)
   # if (random > death_threshold) { # the individual survives
+  # asymptotic recovery
+  population_stat[(t + 1 + incubation_period + asymptomatic_duration):nrow(population_stat), 'R'] = 
+    population_stat[(t + 1 + incubation_period + asymptomatic_duration), 'R'] + ind$asymptomatic
+  # mild to recovery
   population_stat[(t + 1 + incubation_period + as.numeric(ind$asymptomatic) * asymptomatic_duration + as.numeric(ind$mild) * mild_duration + 
                      as.numeric(ind$severe) * severe_duration + as.numeric(ind$critical)*critical_duration):nrow(population_stat), 'R'] = 
     population_stat[(t + 1 + incubation_period + as.numeric(ind$asymptomatic) * asymptomatic_duration + as.numeric(ind$mild) * mild_duration + 

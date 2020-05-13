@@ -3,3 +3,7 @@
 SEIR_asymptomatic.Rproj
 *.Rproj
 rsconnect
+state_data_ignore
+.RData
+.Rhistory
+Onset_analysis/

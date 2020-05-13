@@ -26,20 +26,23 @@ Stochastic_SEIR <- function(N = 1000000, first_case_date = '03/23/2020', first_c
   mild_threshold <- alpha_p
   asymptomatic_threshold <- alpha + alpha_p
   # first cases:
-   ind <- create_new_batch(new_cases = first_case_count, incubation_period, critical_threshold, death_threshold, severe_threshold, mild_threshold,
-                                 ritical_duration, severe_duration, mild_duration,
-                                 asymptomatic_threshold, asymptomatic_duration)
-   population_stat <- update_population(t = 1, exposed_individual = ind, population_stat = population_stat, new_cases = first_case_count)
-  # rest of the simulation
-  for (t in 2:actual_simulation_time) {
+  ind <- create_new_batch(new_cases = first_case_count, incubation_period, critical_threshold, death_threshold, severe_threshold, mild_threshold,
+                               ritical_duration, severe_duration, mild_duration,
+                               asymptomatic_threshold, asymptomatic_duration)
+  population_stat <- update_population(t = 1, exposed_individual = ind, population_stat = population_stat, new_cases = first_case_count)
+# rest of the simulation
+  for (t in 2:10) {
     new_exposed_cases <- new_exposed(beta0 = beta0, beta1 = beta1, beta2 = beta2, beta3 = beta3, 
                                      S = population_stat[t, 'S'], I0 = population_stat[t, 'I0'], I1 = population_stat[t, 'I1'],
                                      I2 = population_stat[t, 'I2'], I3 = population_stat[t, 'I3'], N = N
                                      )
+    print(new_exposed_cases)
+    if (new_exposed_cases > 0) {
       ind <- create_new_batch(new_cases = new_exposed_cases, incubation_period, critical_threshold, death_threshold, severe_threshold, mild_threshold,
                                    ritical_duration, severe_duration, mild_duration,
                                    asymptomatic_threshold, asymptomatic_duration)
       population_stat <- update_population(t = t, exposed_individual = ind, population_stat = population_stat, new_cases = new_exposed_cases)
+    }
     # }
   }
   population_stat <- population_stat[1:(simulation_time + incubation_period + mild_duration), ]
