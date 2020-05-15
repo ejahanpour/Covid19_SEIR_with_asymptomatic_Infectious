@@ -11,13 +11,6 @@ smooth_observation <- function(dataframe)
     tidyr::complete(ONSET_DATE = seq.Date(min(ONSET_DATE), max(ONSET_DATE), by = 'day'), fill = list(CASES = 0)) %>%
     mutate(new_cases = c(CASES[1], diff(CASES))) %>%
     mutate(new_cases_smooth = round(smoother::smth(new_cases, window = 6, tail = TRUE))) %>%
-    # replace the last elements of smoothed cases (NAs with zeros or real values)
-    # mutate(new_cases_smooth = c(new_cases_smooth[-((n()-3):n())], new_cases[((n()-3):n())])) %>%
-    # remove the cases where one is identified between lots of zero proceeding elements
-    # that seems to be more of a travel cases 
-    # mutate(new_cases_smooth = if_else(is.na(new_cases_smooth), new_cases, new_cases_smooth))%>%
-    # mutate(smoothed_cases = replace(new_cases_smooth, which(new_cases_smooth < 0), 0)) %>%
-    # replace the first three elements of the smoothed column with those of the real case
     mutate(smoothed_cases = cumsum(c(new_cases[1:3], new_cases_smooth[4:n()]))) %>%
     slice((min(which(new_cases_smooth != 0))):(max(which(!is.na(new_cases_smooth))))) %>%
     ungroup() %>%

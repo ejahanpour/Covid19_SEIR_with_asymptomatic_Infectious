@@ -1,7 +1,21 @@
 ---
-title: "Stochastic SEIR model for Covid-19"
+title: "Covid-19 (Monitoring with effective reproduction number and Projection with SEIR)"
+Author: "Ehsan Jahanpour"
 output: html_document
 ---
+
+This repository includes the script to monitor the Covid-19 spread using effective reproduction number and project the number of estimated cases based on the current data. Missouri data is being used here to evaluate the model and statistics. 
+
+
+**Disclaimer**: the model is as good as the data inputed and assumption made on the disease. And like all the models they are probablistics with uncertainties. Please use them with cautious and check what data and assumptions have been used in model.
+
+
+## Reproduction number
+The reproduction number, R, is the average number of secondary cases of disease caused by a single infected individual over his or her infectious period. The number can be used to monitor pathogen's transmissibility during an epidemic.
+The dashboard is using two different methods to calculate `Re`:
+
+1. Re using Serial Interval (SI)
+
 
 ## SEIR Model
 

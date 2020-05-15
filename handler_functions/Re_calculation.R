@@ -5,7 +5,6 @@ library(zoo)
 library(HDInterval)
 library(purrr)
 source('handler_functions/count_smoother.R')
-## One of the parameters that can be used to see how disease is being transmitted is Estimated Instantaneous Number
 
 # serial interval is the parameter can be applied to calculate the posterior values for the Re
 mean_si <- 4.7
