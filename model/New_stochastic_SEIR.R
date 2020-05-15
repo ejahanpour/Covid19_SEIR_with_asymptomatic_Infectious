@@ -2,22 +2,25 @@ source("class/new_individual.R")
 source("handler_functions/daily_case_handlers.R")
 library(plotly)
 
-Stochastic_SEIR <- function(N = 100000, first_case_date = "2020-02-02", first_case_count = 1, simulation_time = 30) {
+Stochastic_SEIR <- function(N = 100000, first_case_date = "2020-02-02", first_case_count = 1, simulation_time = 30, Re_df = NULL) {
   #' Gets the SEIR model with Asymptomatic patients and run simulation to estimate the number of susceptible, infected, and recovered per day
   #'
   #'
   #'
   # I assume that after mild infection is done, the individual did the test and confirmed positive
   
-  ####################  PARAMETERS ####################
-  beta0_min = 0.5; beta0_max = 1.5
-  beta1_min = 0.5; beta1_max = 1
-  beta2_min = 0.2; beta2_max = 0.5
-  beta3_min = 0.1; beta3_max = 0.3
+  estimated_Re <- 2
+  disease_duration <- 10
   
+  
+  ####################  PARAMETERS ####################
+  beta0_min = estimated_Re/(2 * disease_duration); beta0_max = beta0_min * 2
+  beta1_min = beta0_min/2; beta1_max = beta0_max/2
+  beta2_min = beta0_min/5; beta2_max = beta0_max/5
+  beta3_min = beta0_min/10; beta3_max = beta0_max/10
   
   day_one_infected <- create_individuals_with_infections(case_count = first_case_count)
-  sink("log.txt", append=TRUE) #open sink file and add output
+  # sink("log.txt", append=TRUE) #open sink file and add output
   max_incubation <- max(unlist(lapply(day_one_infected, function(x) max(x$incubation_period))))
   actual_simulation_time <- simulation_time + max_incubation 
   S <- rep(N, actual_simulation_time)
@@ -27,11 +30,35 @@ Stochastic_SEIR <- function(N = 100000, first_case_date = "2020-02-02", first_ca
   initial_population$S <- 0  
   
   # create the list of daily individual to susceptable infectious contact rate per day per disease stage 
-  daily_infectious_stat <- list(beta0 = runif(actual_simulation_time, beta0_min, beta0_max),
-                                beta1 = runif(actual_simulation_time, beta1_min, beta1_max),
-                                beta2 = runif(actual_simulation_time, beta2_min, beta2_max),
-                                beta3 = runif(actual_simulation_time, beta3_min, beta3_max)
-  )
+  if (!is.null(Re_df)) {
+    t_start <- min(Re_df$t_end)
+    t_end <- max(Re_df$t_end)
+    daily_infectious_stat <- data.frame(matrix(NA, ncol = 2, nrow = actual_simulation_time))
+    colnames(daily_infectious_stat) <- c("mean_re", "std_re")
+    daily_infectious_stat[(t_start + max_incubation):min(t_end + max_incubation, actual_simulation_time) ,] = 
+      Re_df[1:min(simulation_time-t_start+1, t_end-t_start+1), c("Mean(R)", "Std(R)")]
+    # fill in the NAs with the values before or after
+    daily_infectious_stat <- daily_infectious_stat %>%
+      fill(mean_re, std_re) %>%
+      fill(mean_re, std_re, .direction = 'up') 
+    # beta1 for the previous days (before calculating Re)
+    daily_infectious_stat$beta1 <- apply(daily_infectious_stat, 1, function(x) rnorm(1, x["mean_re"], x["std_re"]))
+    daily_infectious_stat$beta1 <- ifelse(daily_infectious_stat$beta1 < 0, 0, daily_infectious_stat$beta1/(2 * disease_duration)) # for daily transmission
+    daily_infectious_stat <- daily_infectious_stat %>%
+      mutate(beta0 = 1.5 * beta1 + runif(1, 0, 0.01),
+             beta2 = beta1 / 5 + runif(1, 0, 0.001),
+             beta3 = beta1 / 10 + runif(1, 0, 0.0001)) %>%
+      select(beta0, beta1, beta2, beta3)
+      
+    
+  } else {
+    daily_infectious_stat <- list(beta0 = runif(actual_simulation_time, beta0_min, beta0_max),
+                                  beta1 = runif(actual_simulation_time, beta1_min, beta1_max),
+                                  beta2 = runif(actual_simulation_time, beta2_min, beta2_max),
+                                  beta3 = runif(actual_simulation_time, beta3_min, beta3_max)
+    )
+  }
+  
   
   
   t <- 1
@@ -51,6 +78,7 @@ Stochastic_SEIR <- function(N = 100000, first_case_date = "2020-02-02", first_ca
                                      I2 = population_stat[t, 'I2'], I3 = population_stat[t, 'I3'], N = N
                                      )
     if (new_exposed_cases > 0) {
+      print(paste(t, 'number of cases:', new_exposed_cases))
       day_t_infected <- create_individuals_with_infections(case_count = new_exposed_cases)
       #update the Susceptible cases based on the infected number
       population_stat[(t + 1):nrow(population_stat), 'S'] <- population_stat[(t + 1):nrow(population_stat), 'S'] - new_exposed_cases
@@ -64,7 +92,7 @@ Stochastic_SEIR <- function(N = 100000, first_case_date = "2020-02-02", first_ca
   date_range <- seq(as.Date(first_case_date) - (max_incubation - 1), 
                     as.Date(first_case_date) + simulation_time, "days")
   population_stat['Date'] = date_range
-  return(population_stat)
+  return(population_stat[(max_incubation + 1):nrow(population_stat), ])
 }
 
 

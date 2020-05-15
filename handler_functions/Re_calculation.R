@@ -11,7 +11,7 @@ source('handler_functions/count_smoother.R')
 mean_si <- 4.7
 std_si <- 2.9
 
-calculate_Re_From_SI <- function(dataframe, mean_si, std_si, county, region) {
+calculate_Re_From_SI <- function(dataframe, mean_si, std_si, county, region, return_df = FALSE) {
   # dataframe <- all_cases[all_cases$LATEST_COUNTED_DHSS_REGION == 'STATE', -1]
   dataframe <- dataframe[ , c('ONSET_DATE', 'smoothed_cases')]
   colnames(dataframe) <- c('dates', 'I')
@@ -26,17 +26,21 @@ calculate_Re_From_SI <- function(dataframe, mean_si, std_si, county, region) {
   estimated_Re <- missouri_re_parametric_si$R
   estimated_Re$dates <- as.Date(min(dataframe$dates)) + estimated_Re$t_end - 1
   estimated_Re$all_one <- 1
-  fig <- plot_ly(data = estimated_Re, x = ~dates, y = ~`Quantile.0.975(R)`, type = 'scatter', mode = 'lines', name = 'UCL', 
-                 line = list(color = 'transparent')) %>%
-    add_trace(y = ~`Quantile.0.025(R)`, type = 'scatter', mode = 'lines',
-              fill = 'tonexty', fillcolor='rgba(0,100,80,0.2)', name = 'LCL', line = list(color = 'transparent')) %>%
-    add_trace(y = ~`Mean(R)`, type = 'scatter', mode = 'lines', line = list(color = 'black'), name = 'Re') %>%
-    add_trace(y = ~all_one, type = 'scatter', mode = 'lines', name = 'unit line', line = list(color = 'red', dash = 'dash')) %>%
-    layout(title = paste0('Covid-19 effective reproductive number (Re), ', county, ', ', tolower(region), ' district, Missouri. 2020'), 
-           xaxis = list(title = 'day'),
-           yaxis = list(title = 'effective reproducion number'))
-
-  return(fig)
+  if (return_df == FALSE){
+    fig <- plot_ly(data = estimated_Re, x = ~dates, y = ~`Quantile.0.975(R)`, type = 'scatter', mode = 'lines', name = 'UCL', 
+                   line = list(color = 'transparent')) %>%
+      add_trace(y = ~`Quantile.0.025(R)`, type = 'scatter', mode = 'lines',
+                fill = 'tonexty', fillcolor='rgba(0,100,80,0.2)', name = 'LCL', line = list(color = 'transparent')) %>%
+      add_trace(y = ~`Mean(R)`, type = 'scatter', mode = 'lines', line = list(color = 'black'), name = 'Re') %>%
+      add_trace(y = ~all_one, type = 'scatter', mode = 'lines', name = 'unit line', line = list(color = 'red', dash = 'dash')) %>%
+      layout(title = paste0('Covid-19 effective reproductive number (Re), ', county, ', ', tolower(region), ' district, Missouri. 2020'), 
+             xaxis = list(title = 'day'),
+             yaxis = list(title = 'effective reproducion number'))
+    
+    return(fig)
+  } else {
+    return(estimated_Re)
+  }
 }
 
 calculate_Re_with_uniform_prior <- function(dataframe) {

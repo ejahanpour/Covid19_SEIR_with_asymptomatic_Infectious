@@ -7,3 +7,6 @@ state_data_ignore
 .RData
 .Rhistory
 Onset_analysis/
+.dom*
+domino*
+all.Rout
