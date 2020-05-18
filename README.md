@@ -1,6 +1,5 @@
 ---
 title: "Covid-19 (Monitoring with effective reproduction number and Projection with SEIR)"
-Author: "Ehsan Jahanpour"
 output: html_document
 ---
 
