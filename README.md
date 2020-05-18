@@ -1,7 +1,4 @@
----
-title: "Covid-19 (Monitoring with effective reproduction number and Projection with SEIR)"
-output: html_document
----
+## Covid-19 (Monitoring with effective reproduction number and Projection with SEIR)
 
 This repository includes the script to monitor the Covid-19 spread using effective reproduction number and project the number of estimated cases based on the current data. Missouri data is being used here to evaluate the model and statistics. 
 
