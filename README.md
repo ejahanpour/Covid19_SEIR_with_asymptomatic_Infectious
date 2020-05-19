@@ -20,7 +20,7 @@ The dashboard is using two different methods to calculate <img src="https://rend
   
   The authors model transmission with a Poisson distribution with mean <img src="https://render.githubusercontent.com/render/math?math=R_t%5Csum_{s=1}^{t} I_{t-s} W_S"> and assumed a constant transmissibility over a time period <img src="https://render.githubusercontent.com/render/math?math=%5Ctau"> (by default 7 days). In their great article, they use a Bayesian framework with a Gamma distribution with parameters (a, b) for <img src="https://render.githubusercontent.com/render/math?math=R_t"> and proved that the posterior would be a Gamma distribution with parameters <img src="https://render.githubusercontent.com/render/math?math=(a+%5Csum_{s=t-%5Ctau%2B1}^{t}I_s , %5Cfrac{1}{%5cfrac{1}{b}%2B%5Csum_{s=t-%5Ctau%2B1}^{t}%5CTau})">
   
-  As shown above, the estimates of effective reproduction number highly depends on the <img src="https://render.githubusercontent.com/render/math?math=W_s"> which is approximated by distribution of serial intervals (SI). The authors assumed SI is Gamma distributed with it's mean and std from a truncated Normal distribution.
+  As shown above, the estimates of effective reproduction number highly depends on the <img src="https://render.githubusercontent.com/render/math?math=W_s"> which is approximated by distribution of serial intervals (SI). The authors assumed SI is Gamma distributed with it's mean and std from a truncated Normal distribution. The mean and standard deviation we used for SI are **4.7** and **2.9** days.
 
 
 ## SEIR Model
