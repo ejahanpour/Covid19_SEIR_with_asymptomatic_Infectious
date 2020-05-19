@@ -7,7 +7,7 @@ This repository includes the script to monitor the Covid-19 spread using effecti
 
 
 ## Reproduction number
-Tnere are two common types of reproduction number being used in epidemiology. Basic reproduction number (or $R_0$) and effective reproduction number (or $R_e$ or $R_t$). 
+There are two common types of reproduction number being used in epidemiology. Basic reproduction number (or $R_0$) and effective reproduction number (or $R_e$ or $R_t$). 
 
 The basic reproduction number is defined as the number of cases that are expected to occur on average in a homogeneous population as a result of infection by a single individual when there is zero immunity in the population. The effective reproduction number, is the number of people in a population who can be infected by an individual at any specific time. The number can be used to monitor pathogen's transmissibility during an epidemic. Society's behavior such as social distancing, immunity due to vaccination or recovery, will impact this metric.
 
@@ -15,7 +15,8 @@ The basic reproduction number is defined as the number of cases that are expecte
 The reproduction number, R, is the average number of secondary cases of disease caused by a single infected individual over his or her infectious period. .
 The dashboard is using two different methods to calculate `Re`:
 
-1. Re using Serial Interval (SI)
+1. Re using Serial Interval (SI) distribution: 
+  Serial Interval is the time between the onset of symptoms in a primary case and the onset of symptoms in secondary cases. We have appled `EpiEstim` package to calculate the Re within a Bayesian framework with a given mean and std of the serial interval. Based on [their article](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3816335/), they assume that once infected, individuals have an infectivity profile given by a probability distribution <img src="https://render.githubusercontent.com/render/math?math=W_s">, dependent on time since infection of the case, s, but independent of calendar time, t. (so no seasonality is being considered in this calculations)
 
 
 ## SEIR Model
