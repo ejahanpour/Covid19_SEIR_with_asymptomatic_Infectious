@@ -9,17 +9,19 @@ Stochastic_SEIR <- function(N = 100000, first_case_date = "2020-02-02", first_ca
   #'
   # I assume that after mild infection is done, the individual did the test and confirmed positive
   
+  asymp_to_symp_effectiev_contact_rate <- 2
   estimated_Re <- 2
-  disease_duration <- 10
+  disease_duration <- 14 # as 7 days also assumed to calculate the Re 
+  alpha0 = 0.3  # percentages of the population who might be infected and be asymptomatic 
   
   
   ####################  PARAMETERS ####################
-  beta0_min = estimated_Re/(2 * disease_duration); beta0_max = beta0_min * 2
+  beta0_min = estimated_Re/(disease_duration); beta0_max = beta0_min * 1.5
   beta1_min = beta0_min/2; beta1_max = beta0_max/2
   beta2_min = beta0_min/5; beta2_max = beta0_max/5
   beta3_min = beta0_min/10; beta3_max = beta0_max/10
   
-  day_one_infected <- create_individuals_with_infections(case_count = first_case_count)
+  day_one_infected <- create_individuals_with_infections(case_count = first_case_count, alpha0 = alpha0)
   # sink("log.txt", append=TRUE) #open sink file and add output
   max_incubation <- max(unlist(lapply(day_one_infected, function(x) max(x$incubation_period))))
   actual_simulation_time <- simulation_time + max_incubation 
@@ -42,14 +44,24 @@ Stochastic_SEIR <- function(N = 100000, first_case_date = "2020-02-02", first_ca
       fill(mean_re, std_re) %>%
       fill(mean_re, std_re, .direction = 'up') 
     # beta1 for the previous days (before calculating Re)
-    daily_infectious_stat$beta1 <- apply(daily_infectious_stat, 1, function(x) rnorm(1, x["mean_re"], x["std_re"]))
-    daily_infectious_stat$beta1 <- ifelse(daily_infectious_stat$beta1 < 0, 0, daily_infectious_stat$beta1/(2 * disease_duration)) # for daily transmission
+   ############# Based on naive assumptions ###############
+    # daily_infectious_stat$beta1 <- apply(daily_infectious_stat, 1, function(x) rnorm(1, x["mean_re"], x["std_re"]))
+    # daily_infectious_stat$beta1 <- ifelse(daily_infectious_stat$beta1 < 0, 0, daily_infectious_stat$beta1/(1.5 * disease_duration)) # for daily transmission
+    # daily_infectious_stat <- daily_infectious_stat %>%
+    #   mutate(beta0 = 1.5 * beta1 + runif(1, 0, 0.01),
+    #          beta2 = beta1 / 5 + runif(1, 0, 0.001),
+    #          beta3 = beta1 / 10 + runif(1, 0, 0.0001)) %>%
+    #   select(beta0, beta1, beta2, beta3)
+    ########################################################
+    ## method 2 is based on my own calculation
     daily_infectious_stat <- daily_infectious_stat %>%
-      mutate(beta0 = 1.5 * beta1 + runif(1, 0, 0.01),
-             beta2 = beta1 / 5 + runif(1, 0, 0.001),
-             beta3 = beta1 / 10 + runif(1, 0, 0.0001)) %>%
+      rowwise() %>%
+      mutate(R_e = rnorm(1, .$mean_re, .$std_re)) %>%
+      mutate(beta1 = R_e / (disease_duration * (alpha0*(asymp_to_symp_effectiev_contact_rate - 1) + 1))) %>% 
+      mutate(beta0 = asymp_to_symp_effectiev_contact_rate * beta1, 
+             beta2 = 0.1 * beta1,
+             beta3 = 0.01 * beta2) %>%
       select(beta0, beta1, beta2, beta3)
-      
     
   } else {
     daily_infectious_stat <- list(beta0 = runif(actual_simulation_time, beta0_min, beta0_max),
@@ -79,7 +91,7 @@ Stochastic_SEIR <- function(N = 100000, first_case_date = "2020-02-02", first_ca
                                      )
     if (new_exposed_cases > 0) {
       print(paste(t, 'number of cases:', new_exposed_cases))
-      day_t_infected <- create_individuals_with_infections(case_count = new_exposed_cases)
+      day_t_infected <- create_individuals_with_infections(case_count = new_exposed_cases, alpha0 = alpha0)
       #update the Susceptible cases based on the infected number
       population_stat[(t + 1):nrow(population_stat), 'S'] <- population_stat[(t + 1):nrow(population_stat), 'S'] - new_exposed_cases
       # update the population_stat dataframe based on the infected individual metrics
@@ -96,24 +108,23 @@ Stochastic_SEIR <- function(N = 100000, first_case_date = "2020-02-02", first_ca
 }
 
 
-create_individuals_with_infections <- function(case_count) {
+create_individuals_with_infections <- function(case_count, alpha0) {
   ###' Create case count number of infected individuals based on the clinical prior distributions
   ###' @param case_count: <integer> number of infected individuals per day
   ###' @return infected_individual_list: <list> list of infected_individuals based on the clincal metrics
   ###' 
   
   ########### Parameters ###############
-  incubatin_min = 4; incubation_max = 6 # https://annals.org/aim/fullarticle/2762808/incubation-period-coronavirus-disease-2019-covid-19-from-publicly-reported
+  incubatin_min = 1; incubation_max = 4 # https://annals.org/aim/fullarticle/2762808/incubation-period-coronavirus-disease-2019-covid-19-from-publicly-reported
   asymp_min = 8; asymp_max = 17 # https://www.businessinsider.com/mild-coronavirus-cases-high-fever-dry-cough-2020-3
   mild_to_severe  = 10
   mild_to_recover = 17 
   severe_to_critical = 4
   severe_to_recover = 7
   critical_to_recover = 3
-  alpha0 = 0.3
   alpha_p = 1 - alpha0
-  alpha1 = 0.39 # https://www.thelancet.com/action/showPdf?pii=S1473-3099%2820%2930232-2
-  alpha2 = 0.77
+  alpha1 = 0.39 # percentages of the mild infection who gets severe and need hospitalization   https://www.thelancet.com/action/showPdf?pii=S1473-3099%2820%2930232-2
+  alpha2 = 0.77 # percentage of severely (hospitalized) infected diseases who would need ICU
   alpha3 = 0.014 / (alpha_p * alpha1 * alpha2) # https://www.nature.com/articles/s41591-020-0822-7 1.4% of the symptomatics
   # probabilities of (asymptomatic, mild, severe, critical, death)
   severity_level <- c(alpha0, alpha_p*(1-alpha1), alpha_p*alpha1*(1- alpha2), alpha_p*alpha1*alpha2*(1 - alpha3), alpha_p*alpha1*alpha2*alpha3)

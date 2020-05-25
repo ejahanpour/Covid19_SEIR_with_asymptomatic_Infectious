@@ -33,6 +33,8 @@ shinyUI(fluidPage(
             conditionalPanel(condition = "input.tabselected==3", 
                              sliderInput("beta3", "Beta 3", min = 0, max = 1, value = 0.1)),
             conditionalPanel(condition = "input.tabselected==2",
+                             sliderInput('sliding_window', 'slinging window for Re calculation (days)', min = 5, max = 15, value = 1, step = 1)),
+            conditionalPanel(condition = "input.tabselected==2",
                              checkboxInput('uniform_prior', 'Consider a  Uniform Prior for Serial Intervals', value = FALSE)),
             conditionalPanel(condition = "input.tabselected==2 & input.uniform_prior==false",
                              textInput('mean_si', 'Select the mean value for Serial Interval', value = 4.7)),

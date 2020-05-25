@@ -3,12 +3,17 @@ source('handler_functions/Re_calculation.R')
 require(foreach)
 require(doParallel)
 
+###### clean data for St Louis #########
+## The first cases before 2/29/2020 seems to be very sparse and not sure if they are travel related or testing erros.
+## we remove those cases 
+
 observed_data <- read.csv('data/MDHSS_region_cases.csv', stringsAsFactors = FALSE) %>%
-  filter(county == 'St louis') %>%
-  arrange(ONSET_DATE) 
+  filter(county == 'St louis' & ONSET_DATE > "2020-02-28") %>%
+  arrange(ONSET_DATE)
+
 
 # sim_time = nrow(observed_data)
-sim_time <- 130
+sim_time <- nrow(observed_data) + 30
 first_date <- observed_data$ONSET_DATE[1]
 first_day_count <- observed_data$CASES[1]
 Population <- 302838   # Wikipedia
@@ -17,6 +22,10 @@ observed_data <- observed_data %>%
   mutate(ONSET_DATE = as.Date(ONSET_DATE)) %>%
   tidyr::complete(ONSET_DATE = seq.Date(min(ONSET_DATE), max(ONSET_DATE), by = 'day'), fill = list(CASES = 0)) %>%
   mutate(smoothed_cases = CASES) # for Re calculation
+
+
+
+
 
 Re_df <- calculate_Re_From_SI(dataframe = observed_data, mean_si = 4.7, std_si = 2.9, 
                               region = 'EASTERN', county = 'St louis', return_df = TRUE)
@@ -27,7 +36,7 @@ cl <- parallel::detectCores() - 2
 registerDoParallel(cl)
 sim_results <- list()
 
-sim_results <- foreach(i = 1:20) %dopar%
+sim_results <- foreach(i = 1:10) %dopar%
   Stochastic_SEIR(N = Population, first_case_date = first_date, first_case_count = first_day_count, 
                   simulation_time = sim_time, Re_df =  Re_df)
 
@@ -45,12 +54,15 @@ observed_data$ONSET_DATE <- as.character(observed_data$ONSET_DATE)
 observed_data <- merge(simulated_infections[c('median', 'lcl', 'ucl', 'ONSET_DATE')], observed_data, by = 'ONSET_DATE', all.x = TRUE) %>%
   dplyr::mutate_all(~replace(., is.na(.), 0)) 
 
+class(observed_data$lcl)
 
 ggplot(data = observed_data, aes(x = ONSET_DATE, group = 1)) +
   geom_line(aes(y = CASES, colour = 'steelblue')) +
   geom_line(aes(y = median, colour = 'black')) + 
-  geom_ribbon( aes(ymin=lcl,ymax=ucl), fill="gray", alpha="0.5") + 
-  scale_color_discrete(name = "Data", labels = c("observed", "estimated"))
+  geom_ribbon( aes(ymin=lcl,ymax=ucl), fill="gray", alpha = 0.5) + 
+  scale_color_discrete(name = "Data", labels = c("estimated", "observed")) + 
+  ggtitle("St Louis Covid-19 observed cases vs. Stochastic SEIR model projections") +
+  theme(axis.text.x = element_text(angle = 90, size = 5))
 
 
 

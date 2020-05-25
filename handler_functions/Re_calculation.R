@@ -10,17 +10,21 @@ source('handler_functions/count_smoother.R')
 mean_si <- 4.7
 std_si <- 2.9
 
-calculate_Re_From_SI <- function(dataframe, mean_si, std_si, county, region, return_df = FALSE) {
+calculate_Re_From_SI <- function(dataframe, mean_si, std_si, county, region, return_df = FALSE, sliding_window = 7) {
   # dataframe <- all_cases[all_cases$LATEST_COUNTED_DHSS_REGION == 'STATE', -1]
   dataframe <- dataframe[ , c('ONSET_DATE', 'smoothed_cases')]
   colnames(dataframe) <- c('dates', 'I')
   dataframe$dates <- as.Date(dataframe$dates)
+  T <- nrow(dataframe)
+  t_start <- seq(2, T - sliding_window)
+  t_end <- t_start + sliding_window
   # dataframe <- dataframe %>%
   #   tidyr::complete(dates = seq.Date(min(dates), max(dates), by = 'day'), fill = list(I = 0)) 
   # dataframe$dates <- as.Date(dataframe$dates)
   missouri_re_parametric_si <- estimate_R(dataframe,
                                           method = 'parametric_si',
-                                          config = make_config(list(mean_si = mean_si, std_si = std_si)))
+                                          config = make_config(list(mean_si = mean_si, std_si = std_si, 
+                                                                    t_start = t_start, t_end = t_end)))
   # estimated_Re <- head(missouri_re_parametric_si$R, -7)
   estimated_Re <- missouri_re_parametric_si$R
   estimated_Re$dates <- as.Date(min(dataframe$dates)) + estimated_Re$t_end - 1

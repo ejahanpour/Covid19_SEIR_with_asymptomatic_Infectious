@@ -75,7 +75,7 @@ shinyServer(function(input, output) {
       if (input$uniform_prior == FALSE) {
          
          calculate_Re_From_SI(dataframe = create_region_stats(), mean_si = as.numeric(input$mean_si), std_si = as.numeric(input$std_si), 
-                              region = input$region, county = input$counties)
+                              region = input$region, county = input$counties, sliding_window = input$sliding_window)
       } else {
          region_posterior <- posterior_Re[(posterior_Re$LATEST_COUNTED_DHSS_REGION == input$region) & 
                                           (posterior_Re$county == input$counties), ]
