@@ -9,9 +9,9 @@ Stochastic_SEIR <- function(N = 100000, first_case_date = "2020-02-02", first_ca
   #'
   # I assume that after mild infection is done, the individual did the test and confirmed positive
   
-  asymp_to_symp_effectiev_contact_rate <- 2
+  asymp_to_symp_effectiev_contact_rate <- 30
   estimated_Re <- 2
-  disease_duration <- 14 # as 7 days also assumed to calculate the Re 
+  disease_duration <- 16 # as 7 days also assumed to calculate the Re 
   alpha0 = 0.3  # percentages of the population who might be infected and be asymptomatic 
   
   
@@ -104,6 +104,9 @@ Stochastic_SEIR <- function(N = 100000, first_case_date = "2020-02-02", first_ca
   date_range <- seq(as.Date(first_case_date) - (max_incubation - 1), 
                     as.Date(first_case_date) + simulation_time, "days")
   population_stat['Date'] = date_range
+  
+  
+  
   return(population_stat[(max_incubation + 1):nrow(population_stat), ])
 }
 
@@ -116,11 +119,11 @@ create_individuals_with_infections <- function(case_count, alpha0) {
   
   ########### Parameters ###############
   incubatin_min = 1; incubation_max = 4 # https://annals.org/aim/fullarticle/2762808/incubation-period-coronavirus-disease-2019-covid-19-from-publicly-reported
-  asymp_min = 8; asymp_max = 17 # https://www.businessinsider.com/mild-coronavirus-cases-high-fever-dry-cough-2020-3
-  mild_to_severe  = 10
-  mild_to_recover = 17 
-  severe_to_critical = 4
-  severe_to_recover = 7
+  asymp_min = 7; asymp_max = 14 # https://www.businessinsider.com/mild-coronavirus-cases-high-fever-dry-cough-2020-3
+  mild_to_severe_mean  = 5; mild_to_severe_std = 4  # CDC info
+  mild_to_recover_min = 7; mild_to_recover_max = 14 # https://www.businessinsider.com/mild-coronavirus-cases-high-fever-dry-cough-2020-3
+  severe_to_critical_mean = 5; severe_to_critical_std = 4
+  severe_to_recover_mean = 10; severe_to_recove_std = 7
   critical_to_recover = 3
   alpha_p = 1 - alpha0
   alpha1 = 0.39 # percentages of the mild infection who gets severe and need hospitalization   https://www.thelancet.com/action/showPdf?pii=S1473-3099%2820%2930232-2
@@ -129,14 +132,22 @@ create_individuals_with_infections <- function(case_count, alpha0) {
   # probabilities of (asymptomatic, mild, severe, critical, death)
   severity_level <- c(alpha0, alpha_p*(1-alpha1), alpha_p*alpha1*(1- alpha2), alpha_p*alpha1*alpha2*(1 - alpha3), alpha_p*alpha1*alpha2*alpha3)
 
+  mild_to_severe = rnorm(n = case_count, mean = mild_to_severe_mean, sd = mild_to_severe_std)
+  mild_to_severe[mild_to_severe < 0] <- 1
+  severe_to_recover = rnorm(n = case_count, mean = severe_to_recover_mean, sd = severe_to_critical_std)
+  severe_to_recover[severe_to_recover < 0] <- 1
+  severe_to_critical = rnorm(n = case_count, mean = severe_to_critical_mean, sd = severe_to_critical_std)
+  severe_to_critical[severe_to_critical < 0] <- 1
+  
   
   individual_feature_list = list(disease_severity = sample(1:5, size = case_count, prob = severity_level, replace = TRUE),
                                  incubation_period = sample(size = case_count, x = incubatin_min:incubation_max, replace = TRUE),
                                  asymptomatic_to_recover = sample(size = case_count, x = asymp_min:asymp_max, replace = TRUE),
-                                 mild_to_severe = rep(mild_to_severe, case_count),
-                                 mild_to_recover = rep(mild_to_recover, case_count),
-                                 severe_to_critical = rep(severe_to_critical, case_count),
-                                 severe_to_recover = rep(severe_to_recover, case_count),
+                                 # mild_to_severe = sample(size = case_count, x = mild_to_severe_min:mild_to_severe_max, replace = TRUE),
+                                 mild_to_severe = mild_to_severe,
+                                 mild_to_recover = sample(size = case_count, x = mild_to_recover_min:mild_to_recover_max, replace = TRUE),
+                                 severe_to_critical = severe_to_critical,
+                                 severe_to_recover = severe_to_recover,
                                  critical_to_recover = rep(critical_to_recover, case_count)
   )
   infected_individuals_list <- purrr::transpose(individual_feature_list)

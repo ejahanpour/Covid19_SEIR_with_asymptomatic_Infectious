@@ -13,7 +13,7 @@ observed_data <- read.csv('data/MDHSS_region_cases.csv', stringsAsFactors = FALS
 
 
 # sim_time = nrow(observed_data)
-sim_time <- nrow(observed_data) + 30
+sim_time <- nrow(observed_data) + 10
 first_date <- observed_data$ONSET_DATE[1]
 first_day_count <- observed_data$CASES[1]
 Population <- 302838   # Wikipedia
@@ -44,6 +44,8 @@ sim_results <- foreach(i = 1:10) %dopar%
 # sim_results <- replicate(10, Stochastic_SEIR(N = Population, first_case_date = first_date, first_case_count = first_day_count, simulation_time = 20))
 
 simulated_infections <- data.frame(do.call(cbind, lapply(sim_results, function(x) x$I0 + x$I1 + x$I2 + x$I3)))
+simulated_infections <- simulated_infections - rbind(rep(0, ncol(simulated_infections)), simulated_infections[1:(nrow(simulated_infections)-1),])
+  
 simulated_infections$median <- apply(simulated_infections, 1, median, na.rm = T)
 simulated_infections$lcl <- apply(simulated_infections, 1, function(x) quantile(x[x>=1], probs=.05, na.rm = T))
 simulated_infections$ucl <- apply(simulated_infections, 1, function(x) quantile(x[x>=1], probs=.95, na.rm = T))
@@ -54,7 +56,7 @@ observed_data$ONSET_DATE <- as.character(observed_data$ONSET_DATE)
 observed_data <- merge(simulated_infections[c('median', 'lcl', 'ucl', 'ONSET_DATE')], observed_data, by = 'ONSET_DATE', all.x = TRUE) %>%
   dplyr::mutate_all(~replace(., is.na(.), 0)) 
 
-class(observed_data$lcl)
+
 
 ggplot(data = observed_data, aes(x = ONSET_DATE, group = 1)) +
   geom_line(aes(y = CASES, colour = 'steelblue')) +
