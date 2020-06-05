@@ -12,6 +12,7 @@ source("model/Stochastic_SEIR.R")
 source("handler_functions/visualization_handler.R")
 source("handler_functions/Re_calculation.R")
 source("handler_functions/count_smoother.R")
+source("handler_functions/death_related_Re.R")
 library(shiny)
 library(dplyr)
 library(plotly)
@@ -37,6 +38,8 @@ shinyServer(function(input, output) {
                 death = ifelse(is.na(smoothed_death), 0 , smoothed_death)) 
       # region_data <- head(region_data, -1)
       })
+   
+   reported_death <- read.csv('data/MDHSS_reported_death.csv')
    
    output$countyControls <- renderUI({
       counties <- unique(all_cases[all_cases$LATEST_COUNTED_DHSS_REGION == input$region, ]$county)
@@ -92,6 +95,12 @@ shinyServer(function(input, output) {
       } 
       
    })
+   
+   output$death_re <- renderPlotly({
+      calculate_Re_from_death(death_data = reported_death, mean_si = as.numeric(input$mean_si),
+                              std_si = as.numeric(input$std_si), sliding_window = input$sliding_window)
+   })
+   
    
    output$seir <- renderPrint({
       "coming Soon..."

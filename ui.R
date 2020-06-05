@@ -47,7 +47,9 @@ shinyUI(fluidPage(
             tabsetPanel(
                 id = 'tabselected',
                 tabPanel("Confirmed Cases", value = 1, plotlyOutput ("distPlot")),
-                tabPanel('Estimated Re', value = 2, plotlyOutput('re')), 
+                tabPanel('Estimated Re', value = 2, plotlyOutput('re'), 
+                         conditionalPanel(condition = 'input.region=="EASTERN"', 
+                                          plotlyOutput('death_re'))), 
                 tabPanel('SEIR projections', value = 3, textOutput('seir'))
                 )
             
