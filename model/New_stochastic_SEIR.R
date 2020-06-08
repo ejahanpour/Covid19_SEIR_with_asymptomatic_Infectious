@@ -9,7 +9,7 @@ Stochastic_SEIR <- function(N = 100000, first_case_date = "2020-02-02", first_ca
   #'
   # I assume that after mild infection is done, the individual did the test and confirmed positive
   
-  asymp_to_symp_effectiev_contact_rate <- 30
+  asymp_to_symp_effectiev_contact_rate <- 10
   estimated_Re <- 2
   disease_duration <- 16  
   alpha0 = 0.3  # percentages of the population who might be infected and be asymptomatic 
@@ -118,10 +118,11 @@ create_individuals_with_infections <- function(case_count, alpha0) {
   ###' 
   
   ########### Parameters ###############
-  incubatin_min = 1; incubation_max = 4 # https://annals.org/aim/fullarticle/2762808/incubation-period-coronavirus-disease-2019-covid-19-from-publicly-reported
-  asymp_min = 10 / 3; asymp_max = 15 /3 # https://www.businessinsider.com/mild-coronavirus-cases-high-fever-dry-cough-2020-3
+  incubatin_min = 1; incubation_max = 2 # https://annals.org/aim/fullarticle/2762808/incubation-period-coronavirus-disease-2019-covid-19-from-publicly-reported
+  # asymp_min = 10 / 2; asymp_max = 15 /2 # https://www.businessinsider.com/mild-coronavirus-cases-high-fever-dry-cough-2020-3
+  asymp_min = 10 ; asymp_max = 13 # https://www.businessinsider.com/mild-coronavirus-cases-high-fever-dry-cough-2020-3
   mild_to_severe_mean  = 7 / 2; mild_to_severe_std = 5  # CDC info
-  mild_to_recover_min = 10 / 3; mild_to_recover_max = 15 / 3 # https://www.businessinsider.com/mild-coronavirus-cases-high-fever-dry-cough-2020-3
+  mild_to_recover_min = 10 / 2; mild_to_recover_max = 10 # https://www.businessinsider.com/mild-coronavirus-cases-high-fever-dry-cough-2020-3
   severe_to_critical_mean = 5; severe_to_critical_std = 4
   severe_to_recover_mean = 10; severe_to_recove_std = 7
   critical_to_recover_mean = 5; critical_to_recover_std = 4
@@ -155,17 +156,18 @@ create_individuals_with_infections <- function(case_count, alpha0) {
   return(infected_individuals_list)
 }
 
-update_daily_cases <- function(daily_infected_individuals, population_stat, t) {
+update_daily_cases <- function(daily_infected_individuals, population_stat, t, Re) {
   ###' Updates the population stat of the community based on the nubmer of individuals got infected on day t and their stochastic features
   ###'@param daily_infected_individuals: <list> list of the clinical features for each infected individual (disease_severity, time_for_each_disease_stage, ...)
   ###'@param population_stat: <dataframe> dataframe of simulation days and number of Susceptable, Infected, Recovered and Deseased at each day
   ###'@param t: <integer> day when population_stat is being updated
+  ###'@param Re: effective reproductive rate of the Covid19 on day t (this will be used to assign stochastic infectiousness) 
   ###'@return population_stat: <dataframe> updated population_stat based on the features of individuals being infected
   ###'
   initial_population_rows = nrow(population_stat)
   population_stat[(t + 1):(t+daily_infected_individuals$incubation_period), 'E'] <- 
     population_stat[(t + 1):(t+daily_infected_individuals$incubation_period), 'E'] + 1
-  if (daily_infected_individuals$disease_severity == 1) {
+  if (daily_infected_individuals$disease_severity == 1) {  # Asymptomatic
     population_stat[(t + daily_infected_individuals$incubation_period + 1):(t + daily_infected_individuals$incubation_period + daily_infected_individuals$asymptomatic_to_recover), 'I0'] <- 
       population_stat[(t + daily_infected_individuals$incubation_period + 1):(t + daily_infected_individuals$incubation_period + daily_infected_individuals$asymptomatic_to_recover), 'I0'] + 1
     population_stat[(t + daily_infected_individuals$incubation_period + daily_infected_individuals$asymptomatic_to_recover + 1):nrow(population_stat), 'R'] <- 
