@@ -9,18 +9,18 @@ Stochastic_SEIR <- function(N = 100000, first_case_date = "2020-02-02", first_ca
   #'
   # I assume that after mild infection is done, the individual did the test and confirmed positive
   
-  asymp_to_symp_effectiev_contact_rate <- 10
+  asymp_to_symp_effectiev_contact_rate <- 1
   estimated_Re <- 2
-  disease_duration <- 16  
+  # disease_duration <- 5
   alpha0 = 0.3  # percentages of the population who might be infected and be asymptomatic 
   
   
   ####################  PARAMETERS ####################
-  beta0_min = estimated_Re/(disease_duration); beta0_max = beta0_min * 1.5
-  beta1_min = beta0_min/2; beta1_max = beta0_max/2
-  beta2_min = beta0_min/5; beta2_max = beta0_max/5
-  beta3_min = beta0_min/10; beta3_max = beta0_max/10
-  
+  # beta0_min = estimated_Re/(disease_duration); beta0_max = beta0_min * 1.5
+  # beta1_min = beta0_min/2; beta1_max = beta0_max/2
+  # beta2_min = beta0_min/5; beta2_max = beta0_max/5
+  # beta3_min = beta0_min/10; beta3_max = beta0_max/10
+  # 
   day_one_infected <- create_individuals_with_infections(case_count = first_case_count, alpha0 = alpha0)
   # sink("log.txt", append=TRUE) #open sink file and add output
   max_incubation <- max(unlist(lapply(day_one_infected, function(x) max(x$incubation_period))))
@@ -55,9 +55,10 @@ Stochastic_SEIR <- function(N = 100000, first_case_date = "2020-02-02", first_ca
     ########################################################
     ## method 2 is based on my own calculation
     daily_infectious_stat <- daily_infectious_stat %>%
-      rowwise() %>%
-      mutate(R_e = rnorm(1, .$mean_re, .$std_re)) %>%
-      mutate(beta1 = R_e / (disease_duration * (alpha0*(asymp_to_symp_effectiev_contact_rate - 1) + 1))) %>% 
+      dplyr::rowwise() %>%
+      mutate(R_e = rnorm(1, mean_re, std_re)) %>%
+      # mutate(beta1 = R_e / (disease_duration * (alpha0*(asymp_to_symp_effectiev_contact_rate - 1) + 1))) %>%
+      mutate(beta1 = R_e / asymp_to_symp_effectiev_contact_rate) %>%
       mutate(beta0 = asymp_to_symp_effectiev_contact_rate * beta1, 
              beta2 = 0.1 * beta1,
              beta3 = 0.01 * beta2) %>%
@@ -78,7 +79,7 @@ Stochastic_SEIR <- function(N = 100000, first_case_date = "2020-02-02", first_ca
   #update the Susceptible cases based on the infected number
   population_stat[(t + 1):nrow(population_stat), 'S'] <- population_stat[(t + 1):nrow(population_stat), 'S'] - first_case_count
   # update the population_stat dataframe based on the infected individual metrics
-  population_stat <- population_stat + Reduce('+', lapply(day_one_infected, update_daily_cases, initial_population, t = 1))
+  population_stat <- population_stat + Reduce('+', lapply(day_one_infected, update_with_gamma_infectiousness, initial_population, t = 1))
   # find the number of new infected individuals on day t
   
   
@@ -87,7 +88,8 @@ Stochastic_SEIR <- function(N = 100000, first_case_date = "2020-02-02", first_ca
     new_exposed_cases <- new_exposed(beta0 = daily_infectious_stat$beta0[t], beta1 = daily_infectious_stat$beta1[t], 
                                      beta2 = daily_infectious_stat$beta2[t], beta3 = daily_infectious_stat$beta3[t], 
                                      S = population_stat[t, 'S'], I0 = population_stat[t, 'I0'], I1 = population_stat[t, 'I1'],
-                                     I2 = population_stat[t, 'I2'], I3 = population_stat[t, 'I3'], N = N
+                                     I2 = population_stat[t, 'I2'], I3 = population_stat[t, 'I3'], N = N,
+                                     E = population_stat[t, 'E']
                                      )
     if (new_exposed_cases > 0) {
       print(paste(t, 'number of cases:', new_exposed_cases))
@@ -95,7 +97,7 @@ Stochastic_SEIR <- function(N = 100000, first_case_date = "2020-02-02", first_ca
       #update the Susceptible cases based on the infected number
       population_stat[(t + 1):nrow(population_stat), 'S'] <- population_stat[(t + 1):nrow(population_stat), 'S'] - new_exposed_cases
       # update the population_stat dataframe based on the infected individual metrics
-      population_stat <- population_stat + Reduce('+', lapply(day_t_infected, update_daily_cases, initial_population, t = t))
+      population_stat <- population_stat + Reduce('+', lapply(day_t_infected, update_with_gamma_infectiousness, initial_population, t = t))
       # find the number of new infected individuals on day t
     }
     # }
@@ -118,13 +120,13 @@ create_individuals_with_infections <- function(case_count, alpha0) {
   ###' 
   
   ########### Parameters ###############
-  incubatin_min = 1; incubation_max = 2 # https://annals.org/aim/fullarticle/2762808/incubation-period-coronavirus-disease-2019-covid-19-from-publicly-reported
+  incubatin_min = 2; incubation_max = 4 # https://annals.org/aim/fullarticle/2762808/incubation-period-coronavirus-disease-2019-covid-19-from-publicly-reported
   # asymp_min = 10 / 2; asymp_max = 15 /2 # https://www.businessinsider.com/mild-coronavirus-cases-high-fever-dry-cough-2020-3
   asymp_min = 10 ; asymp_max = 13 # https://www.businessinsider.com/mild-coronavirus-cases-high-fever-dry-cough-2020-3
-  mild_to_severe_mean  = 7 / 2; mild_to_severe_std = 5  # CDC info
-  mild_to_recover_min = 10 / 2; mild_to_recover_max = 10 # https://www.businessinsider.com/mild-coronavirus-cases-high-fever-dry-cough-2020-3
+  mild_to_recover_min = 10 ; mild_to_recover_max = 13 # https://www.businessinsider.com/mild-coronavirus-cases-high-fever-dry-cough-2020-3
+  mild_to_severe_mean  = 7 ; mild_to_severe_std = 5  # CDC info
   severe_to_critical_mean = 5; severe_to_critical_std = 4
-  severe_to_recover_mean = 10; severe_to_recove_std = 7
+  severe_to_recover_mean = 5; severe_to_recove_std = 5
   critical_to_recover_mean = 5; critical_to_recover_std = 4
   alpha_p = 1 - alpha0
   alpha1 = 0.39 # percentages of the mild infection who gets severe and need hospitalization   https://www.thelancet.com/action/showPdf?pii=S1473-3099%2820%2930232-2
@@ -204,6 +206,95 @@ update_daily_cases <- function(daily_infected_individuals, population_stat, t, R
                       (t + daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe + daily_infected_individuals$severe_to_critical + daily_infected_individuals$critical_to_recover), 'I3'] <- 
       population_stat[(t + daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe  + daily_infected_individuals$severe_to_critical + 1):
                         (t + daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe + daily_infected_individuals$severe_to_critical + daily_infected_individuals$critical_to_recover), 'I3'] + 1      
+    # next S(he) will be either recovered or deseased :(
+    if (daily_infected_individuals$disease_severity == 4) {
+      population_stat[(t + daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe + daily_infected_individuals$severe_to_critical + daily_infected_individuals$critical_to_recover + 1):nrow(population_stat), 'R'] <- 
+        population_stat[(t + daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe + daily_infected_individuals$severe_to_critical + daily_infected_individuals$critical_to_recover + 1):nrow(population_stat), 'R'] + 1      
+    } else {
+      population_stat[(t + daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe + daily_infected_individuals$severe_to_critical + daily_infected_individuals$critical_to_recover + 1):nrow(population_stat), 'D'] <- 
+        population_stat[(t + daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe + daily_infected_individuals$severe_to_critical + daily_infected_individuals$critical_to_recover + 1):nrow(population_stat), 'D'] + 1      
+      
+    }
+  }
+  return(population_stat[1:initial_population_rows , ])
+}
+
+
+update_with_gamma_infectiousness <- function(daily_infected_individuals, population_stat, t, Re) {
+  ###' Updates the population stat of the community based on the nubmer of individuals got infected on day t and their stochastic features
+  ###'@param daily_infected_individuals: <list> list of the clinical features for each infected individual (disease_severity, time_for_each_disease_stage, ...)
+  ###'@param population_stat: <dataframe> dataframe of simulation days and number of Susceptable, Infected, Recovered and Deseased at each day
+  ###'@param t: <integer> day when population_stat is being updated
+  ###'@param Re: effective reproductive rate of the Covid19 on day t (this will be used to assign stochastic infectiousness) 
+  ###'@return population_stat: <dataframe> updated population_stat based on the features of individuals being infected
+  ###'
+  
+  # based on the literature the infectiousness increases two days after being exposed and takes around 9 days
+  # below is finding the best estimator to find the gamma distribution to model such infectiousness
+  gamma_mean <- 4.7
+  gamma_std <- 3.3
+  gamma_shape <- (gamma_mean / gamma_std) ^ 2
+  gamma_scale <- (gamma_std ^ 2) / gamma_mean
+  day_of_infection <- 1:60
+  day_infectiousness <- dgamma(x = day_of_infection, shape = gamma_shape, scale = gamma_scale)
+  # normalize the distribution
+  day_infectiousness = day_infectiousness / sum(day_infectiousness)
+  # plot(x = day_of_infection, y = day_infectiousness, type = 'l')
+  # infectiousness <- rgamma(1000, shape = gamma_shape, scale = gamma_scale)
+  # infectiousness_density <- density(infectiousness)
+  # plot(infectiousness_density)
+  
+  
+  initial_population_rows = nrow(population_stat)
+  population_stat[(t + 1):(t+daily_infected_individuals$incubation_period), 'E'] <- 
+    population_stat[(t + 1):(t+daily_infected_individuals$incubation_period), 'E'] + day_infectiousness[1:daily_infected_individuals$incubation_period]
+  if (daily_infected_individuals$disease_severity == 1) {  # Asymptomatic
+    population_stat[(t + daily_infected_individuals$incubation_period + 1):(t + daily_infected_individuals$incubation_period + daily_infected_individuals$asymptomatic_to_recover), 'I0'] <- 
+      population_stat[(t + daily_infected_individuals$incubation_period + 1):(t + daily_infected_individuals$incubation_period + daily_infected_individuals$asymptomatic_to_recover), 'I0'] + 
+      day_infectiousness[(daily_infected_individuals$incubation_period + 1):(daily_infected_individuals$incubation_period + daily_infected_individuals$asymptomatic_to_recover)]
+    population_stat[(t + daily_infected_individuals$incubation_period + daily_infected_individuals$asymptomatic_to_recover + 1):nrow(population_stat), 'R'] <- 
+      population_stat[(t + daily_infected_individuals$incubation_period + daily_infected_individuals$asymptomatic_to_recover + 1):nrow(population_stat), 'R'] + 1
+    
+  } else if(daily_infected_individuals$disease_severity == 2) {  # mild cases
+    population_stat[(t + daily_infected_individuals$incubation_period + 1):(t+ daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_recover), 'I1'] <- 
+      population_stat[(t + daily_infected_individuals$incubation_period + 1):(t+ daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_recover), 'I1'] + 
+      day_infectiousness[(daily_infected_individuals$incubation_period + 1):(daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_recover)]
+    population_stat[(t + daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_recover + 1):nrow(population_stat), 'R'] <- 
+      population_stat[(t + daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_recover + 1):nrow(population_stat), 'R'] + 1
+  } else if(daily_infected_individuals$disease_severity == 3) {   # severe cases
+    # first patient goes to mild phase
+    population_stat[(t + daily_infected_individuals$incubation_period + 1):(t+ daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe), 'I1'] <- 
+      population_stat[(t + daily_infected_individuals$incubation_period + 1):(t+ daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe), 'I1'] +
+      day_infectiousness[(daily_infected_individuals$incubation_period + 1):(daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe)]
+    # next S(he) will go to severe phase (hospitalized)
+    population_stat[(t + daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe + 1):
+                      (t + daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe + daily_infected_individuals$severe_to_recover), 'I2'] <- 
+      population_stat[(t + daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe + 1):
+                        (t + daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe + daily_infected_individuals$severe_to_recover), 'I2'] + 
+      day_infectiousness[(daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe + 1):(daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe + daily_infected_individuals$severe_to_recover)]
+    # finally S(he) will be recovered
+    population_stat[(t + daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe + daily_infected_individuals$severe_to_recover + 1):nrow(population_stat), 'R'] <- 
+      population_stat[(t + daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe + daily_infected_individuals$severe_to_recover + 1):nrow(population_stat), 'R'] + 1
+  } else if(daily_infected_individuals$disease_severity %in% c(4, 5)) {   # critical cases
+    # first patient goes to mild phase
+    population_stat[(t + daily_infected_individuals$incubation_period + 1):(t+ daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe), 'I1'] <- 
+      population_stat[(t + daily_infected_individuals$incubation_period + 1):(t+ daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe), 'I1'] + 
+      day_infectiousness[(daily_infected_individuals$incubation_period + 1):(daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe)]
+    # next S(he) will go to severe phase (hospitalized)
+    population_stat[(t + daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe + 1):
+                      (t + daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe + daily_infected_individuals$severe_to_critical), 'I2'] <- 
+      population_stat[(t + daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe + 1):
+                        (t + daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe + daily_infected_individuals$severe_to_critical), 'I2'] + 
+      day_infectiousness[(daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe + 1):
+                           (daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe + daily_infected_individuals$severe_to_critical)]
+    
+    # then S(he) will go to critical phase
+    population_stat[(t + daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe  + daily_infected_individuals$severe_to_critical + 1):
+                      (t + daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe + daily_infected_individuals$severe_to_critical + daily_infected_individuals$critical_to_recover), 'I3'] <- 
+      population_stat[(t + daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe  + daily_infected_individuals$severe_to_critical + 1):
+                        (t + daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe + daily_infected_individuals$severe_to_critical + daily_infected_individuals$critical_to_recover), 'I3'] +   
+    day_infectiousness[(daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe + daily_infected_individuals$severe_to_critical + 1):
+                         (daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe + daily_infected_individuals$severe_to_critical + daily_infected_individuals$critical_to_recover)]
     # next S(he) will be either recovered or deseased :(
     if (daily_infected_individuals$disease_severity == 4) {
       population_stat[(t + daily_infected_individuals$incubation_period + daily_infected_individuals$mild_to_severe + daily_infected_individuals$severe_to_critical + daily_infected_individuals$critical_to_recover + 1):nrow(population_stat), 'R'] <- 

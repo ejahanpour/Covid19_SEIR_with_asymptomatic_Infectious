@@ -102,8 +102,8 @@ shinyServer(function(input, output) {
    })
    
    
-   output$seir <- renderPrint({
-      "coming Soon..."
+   output$seir <- renderPlotly({
+      plot_SEIR_predictions()
    })
 
 })

@@ -22,16 +22,16 @@ shinyUI(fluidPage(
             uiOutput("countyControls"),
             conditionalPanel(condition = 'input.tabselected == 1',
                              checkboxInput("smoother", "Smooth Data", value = FALSE)),
-            conditionalPanel(condition = "input.tabselected==3", 
-                             sliderInput("alpha", "percentage of asymptomatic infectious", min = 0, max = 1, value = 0.5)),
-            conditionalPanel(condition = "input.tabselected==3", 
-                             sliderInput("beta0", "Beta 0", min = 0, max = 1, value = 0.7)),
-            conditionalPanel(condition = "input.tabselected==3", 
-                             sliderInput("beta1", "Beta 1", min = 0, max = 1, value = 0.5)),
-            conditionalPanel(condition = "input.tabselected==3", 
-                             sliderInput("beta2", "Beta 2", min = 0, max = 1, value = 0.3)),
-            conditionalPanel(condition = "input.tabselected==3", 
-                             sliderInput("beta3", "Beta 3", min = 0, max = 1, value = 0.1)),
+            # conditionalPanel(condition = "input.tabselected==3", 
+            #                  sliderInput("alpha", "percentage of asymptomatic infectious", min = 0, max = 1, value = 0.5)),
+            # conditionalPanel(condition = "input.tabselected==3", 
+            #                  sliderInput("beta0", "Beta 0", min = 0, max = 1, value = 0.7)),
+            # conditionalPanel(condition = "input.tabselected==3", 
+            #                  sliderInput("beta1", "Beta 1", min = 0, max = 1, value = 0.5)),
+            # conditionalPanel(condition = "input.tabselected==3", 
+            #                  sliderInput("beta2", "Beta 2", min = 0, max = 1, value = 0.3)),
+            # conditionalPanel(condition = "input.tabselected==3", 
+            #                  sliderInput("beta3", "Beta 3", min = 0, max = 1, value = 0.1)),
             conditionalPanel(condition = "input.tabselected==2",
                              sliderInput('sliding_window', 'slinging window for Re calculation (days)', min = 5, max = 15, value = 7, step = 1)),
             conditionalPanel(condition = "input.tabselected==2",
@@ -50,7 +50,7 @@ shinyUI(fluidPage(
                 tabPanel('Estimated Re', value = 2, plotlyOutput('re'), 
                          conditionalPanel(condition = 'input.region=="EASTERN"', 
                                           plotlyOutput('death_re'))), 
-                tabPanel('SEIR projections', value = 3, textOutput('seir'))
+                tabPanel('SEIR projections', value = 3, plotlyOutput('seir'))
                 )
             
         )

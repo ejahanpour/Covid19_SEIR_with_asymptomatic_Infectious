@@ -1,4 +1,4 @@
-new_exposed <- function(beta0, beta1, beta2, beta3, S, I0, I1, I2, I3, N) {
+new_exposed <- function(beta0, beta1, beta2, beta3, S, I0, I1, I2, I3, N, E) {
   #' Gets the values for beta0, beta1, beta2, beta3 along with the susciptable and infectious patients to calculate the 
   #' number of new cases per day
   #' Args: 
@@ -12,7 +12,7 @@ new_exposed <- function(beta0, beta1, beta2, beta3, S, I0, I1, I2, I3, N) {
   #' I2 = number of severe infectious person in the society
   #' I3 = number of critical infectious person in the society
   #' N = population of the societyß
-  new_exposed <- (S / N) * sum(beta0 * I0, beta1 * I1, beta2 * I2, beta3 * I3) 
+  new_exposed <- (S / N) * sum(beta0, E, beta0 * I0, beta1 * I1, beta2 * I2, beta3 * I3) 
   return(ceiling(new_exposed))
 }
 
